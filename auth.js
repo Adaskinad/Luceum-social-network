@@ -1,38 +1,68 @@
-const jwt = require('jsonwebtoken');
+const express = require('express');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
+const db = require('../database');
+const { generateToken } = require('../auth');
 
-const SECRET_KEY = process.env.JWT_SECRET;
+const router = express.Router();
 
-function generateToken(user) {
-  return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
-    SECRET_KEY,
-    { expiresIn: '24h' }
-  );
-}
-
-function verifyToken(req, res, next) {
-  const token = req.headers['authorization']?.split(' ')[1];
+router.post('/register', (req, res) => {
+  const { name, email, password, class: userClass } = req.body;
   
-  if (!token) {
-    return res.status(401).json({ error: 'Требуется авторизация' });
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Все поля обязательны' });
   }
-
-  try {
-    const decoded = jwt.verify(token, SECRET_KEY);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(403).json({ error: 'Недействительный токен' });
+  if (password.length < 3) {
+    return res.status(400).json({ error: 'Пароль должен быть не менее 3 символов' });
   }
-}
-
-function isAdmin(req, res, next) {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Доступ запрещён. Требуются права администратора' });
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Некорректный email' });
   }
-  next();
-}
+  
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  
+  db.run(
+    'INSERT INTO users (name, email, password, class) VALUES (?, ?, ?, ?)',
+    [name, email, hashedPassword, userClass || ''],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE')) {
+          return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+        }
+        return res.status(500).json({ error: 'Ошибка сервера' });
+      }
+      res.status(201).json({ message: 'Регистрация успешна' });
+    }
+  );
+});
 
-module.exports = { generateToken, verifyToken, isAdmin };
+router.post('/login', (req, res) => {
+  const { email, password } = req.body;
+  
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email и пароль обязательны' });
+  }
+  
+  db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
+    if (err) return res.status(500).json({ error: 'Ошибка сервера' });
+    if (!user) return res.status(401).json({ error: 'Неверный email или пароль' });
+    
+    const isValidPassword = bcrypt.compareSync(password, user.password);
+    if (!isValidPassword) return res.status(401).json({ error: 'Неверный email или пароль' });
+    
+    const token = generateToken(user);
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        class: user.class
+      }
+    });
+  });
+});
+
+module.exports = router;
