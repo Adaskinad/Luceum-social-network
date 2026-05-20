@@ -7,21 +7,37 @@
 │   ├── package-lock.json
 
 │   ├── server.js
+
 │   ├── database.js
+
 │   ├── auth.js
+
 │   ├── routes/
+
 │   │   ├── auth.js
+
 │   │   ├── posts.js
+
 │   │   ├── groups.js
+
 │   │   ├── users.js
+
 │   │   ├── chat.js
+
 │   │   ├── posts.js
+
 │   │   └── comments.js
+
 │   └── .env
+
 ├── frontend/
+
 │   ├── index.html
+
 │   ├── styles.css
+
 │   ├── app.js
+
 │   └── api.js
 
 Выполнил
