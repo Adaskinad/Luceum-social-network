@@ -1,8 +1,11 @@
 Структура кода(извините, не разобрался как нормально его по попкам раскинуть тут)
 
 ├── backend/
+
 │   ├── package.json
+
 │   ├── package-lock.json
+
 │   ├── server.js
 │   ├── database.js
 │   ├── auth.js
